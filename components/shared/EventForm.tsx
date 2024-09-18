@@ -25,15 +25,27 @@ import "react-datepicker/dist/react-datepicker.css";
 import { Checkbox } from "../ui/checkbox";
 import { useUploadThing } from "@/lib/uploadthing";
 import { useRouter } from "next/navigation";
+import { createEvent, updateEvent } from "@/lib/actions/event.actions";
+import { IEvent } from "@/lib/database/models/event.model";
 
 type EventFormProps = {
 	userId: string;
 	type: "Create" | "Update";
+	event?: IEvent;
+	eventId?: string;
 };
 
-const EventForm = ({ userId, type }: EventFormProps) => {
+const EventForm = ({ userId, type, event, eventId }: EventFormProps) => {
 	const [files, setFiles] = useState<File[]>([]);
-	const initialValues = eventDefaultValues;
+	const initialValues =
+		event && type === "Update"
+			? {
+					...event,
+					startDateTime: new Date(event.startDateTime),
+					endDateTime: new Date(event.endDateTime),
+					imageUrl: event.imageUrl,
+			  }
+			: eventDefaultValues;
 	const router = useRouter();
 
 	const { startUpload } = useUploadThing("imageUploader");
@@ -53,19 +65,39 @@ const EventForm = ({ userId, type }: EventFormProps) => {
 		}
 
 		if (type === "Create") {
-			// try {
-			// const newEvent = await createEvent({
-			// 	event: { ...values, imageUrl: uploadedImageUrl },
-			// 	userId,
-			// 	path: '/profile'
-			// });
-			// if(newEvent) {
-			// 	form.reset()
-			// 	router.push('/events/${newEvent._id}')
-			// }
-			// } catch (error) {
-			// console.log(error);
-			// }
+			try {
+				const newEvent = await createEvent({
+					event: { ...values, imageUrl: uploadedImageUrl },
+					userId,
+					path: "/profile",
+				});
+				if (newEvent) {
+					form.reset();
+					router.push(`/events/${newEvent._id}`);
+				}
+			} catch (error) {
+				console.log(error);
+			}
+		}
+
+		if (type === "Update") {
+			if (!eventId) {
+				router.back();
+				return;
+			}
+			try {
+				const updatedEvent = await updateEvent({
+					userId,
+					event: { ...values, imageUrl: uploadedImageUrl, _id: eventId },
+					path: `/events/${eventId}`,
+				});
+				if (updatedEvent) {
+					form.reset();
+					router.push(`/events/${updatedEvent._id}`);
+				}
+			} catch (error) {
+				console.log(error);
+			}
 		}
 	}
 
@@ -135,7 +167,7 @@ const EventForm = ({ userId, type }: EventFormProps) => {
 								<FormControl>
 									<FileUploader
 										onFieldChange={field.onChange}
-										imageUrl={field.value}
+										imageUrl={field.value || event?.imageUrl}
 										setFiles={setFiles}
 									/>
 								</FormControl>
@@ -243,29 +275,25 @@ const EventForm = ({ userId, type }: EventFormProps) => {
 						render={({ field }) => (
 							<FormItem className="w-full">
 								<FormControl>
-									<div className="flex-center h-[55px] w-full overflow-hidden rounded-full bg-gray-50 px-4 py-2">
+									<div className="flex-center h-[54px] w-full overflow-hidden rounded-full bg-grey-50 px-4 py-2">
 										<Image
 											src="/assets/icons/dollar.svg"
-											alt="Dollar"
+											alt="dollar"
 											width={24}
 											height={24}
-											className="filter=grey"
+											className="filter-grey"
 										/>
-										<p className="ml-3 whitespace-nowrap text-gray-600">
-											Start Date:
-										</p>
 										<Input
 											type="number"
 											placeholder="Price"
 											{...field}
-											className="p-regular-16 border-0 bg-gray-50 outline-offset-0 focus:border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+											className="p-regular-16 border-0 bg-grey-50 outline-offset-0 focus:border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
 										/>
-
 										<FormField
 											control={form.control}
 											name="isFree"
 											render={({ field }) => (
-												<FormItem className="">
+												<FormItem>
 													<FormControl>
 														<div className="flex items-center">
 															<label
@@ -274,10 +302,10 @@ const EventForm = ({ userId, type }: EventFormProps) => {
 																Free Ticket
 															</label>
 															<Checkbox
-																id="isFree"
-																className="mr-2 h-5 w-5 border-2 border-primary-500"
 																onCheckedChange={field.onChange}
 																checked={field.value}
+																id="isFree"
+																className="mr-2 h-5 w-5 border-2 border-primary-500"
 															/>
 														</div>
 													</FormControl>
