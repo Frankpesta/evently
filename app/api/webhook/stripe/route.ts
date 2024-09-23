@@ -24,6 +24,8 @@ export async function POST(request: Request) {
 	if (eventType === "checkout.session.completed") {
 		const { id, amount_total, metadata } = event.data.object;
 
+		console.log(metadata);
+
 		const order = {
 			stripeId: id,
 			eventId: metadata?.eventId || "",
